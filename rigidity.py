@@ -1,3 +1,6 @@
+import numpy as np
+
+
 """
 Create tools to work with rigidity theory.
 
@@ -52,3 +55,33 @@ class AffineTransform:
             for i in range(abs(pow)):
                 ans = (self.rotation**(-1))*(ans - self.translation)
         return ans
+
+
+class Framework:
+    def __init__(self, G, P, n, T1, T2):
+        self.graph = G
+        self.baseConfig = P
+        self.n = n
+        self.T1 = T1
+        self.T2 = T2
+        self.repeatedConfig = self.__generateRepeatedConfig()
+
+    def vertexLocation(self, r_id, n):
+        n1, n2 = n
+
+        r = self.T1(r_id, pow=n1)
+        r = self.T2(r, pow=n2)
+
+        return r
+
+    def __generateRepeatedConfig(self):
+        n1, n2 = self.n
+        nv = len(self.baseConfig)
+        repeatedConfig = np.zeros((nv, n1 + 1, n2 + 1, 3))
+
+        for vertex, coord in enumerate(self.baseConfig):
+            for i in range(n1+1):
+                for j in range(n2+1):
+                    repeatedConfig[vertex, i, j, :] = self.vertexLocation(
+                        coord, (i, j))[:]
+        return repeatedConfig
