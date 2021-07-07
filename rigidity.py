@@ -1,16 +1,17 @@
-import numpy as np
-
-
 """
 Create tools to work with rigidity theory.
 
 Classes:
 
     AffineTansform
+    Framework
 
 Functions:
 
 """
+
+
+import numpy as np
 
 
 class AffineTransform:
@@ -61,10 +62,9 @@ class Framework:
     def __init__(self, G, P, n, T1, T2):
         self.graph = G
         self.baseConfig = P
-        self.n = n
+        self.nMax = n
         self.T1 = T1
         self.T2 = T2
-        self.repeatedConfig = self.__generateRepeatedConfig()
 
     def vertexLocation(self, r_id, n):
         n1, n2 = n
@@ -74,8 +74,8 @@ class Framework:
 
         return r
 
-    def __generateRepeatedConfig(self):
-        n1, n2 = self.n
+    def repeatedConfig(self):
+        n1, n2 = self.nMax
         nv = len(self.baseConfig)
         repeatedConfig = np.zeros((nv, n1 + 1, n2 + 1, 3))
 
@@ -85,3 +85,34 @@ class Framework:
                     repeatedConfig[vertex, i, j, :] = self.vertexLocation(
                         coord, (i, j))[:]
         return repeatedConfig
+
+    def edgeVector(self, edge, n):
+        i, j = edge
+        p_i = self.baseConfig[i]
+        p_j = self.baseConfig[j]
+        Tp_j = self.vertexLocation(p_j, n)
+
+        return Tp_j - p_i
+
+    def rigidityMatrix(self):
+        vertices, edges = self.graph
+        edgesFlat = [edge for adjList in edges.values() for edge in adjList]
+        nEdges = len(edgesFlat)
+        nVerts = len(vertices)
+        count = 0
+
+        R = np.zeros(shape=(nEdges, 3*nVerts))
+        for i in vertices:
+            nbs = edges[i]
+            for edge in nbs:
+                j = edge[0]
+                marking = edge[1:]
+
+                edgeVector = self.edgeVector((i, j), marking)
+                R[count, 3*i: 3*(i+1)] = edgeVector.transpose()
+
+                rEdgeVector = self.edgeVector((j, i), [-n for n in marking])
+                R[count, 3*j: 3*(j+1)] = rEdgeVector.transpose()
+
+                count += 1
+        return R
