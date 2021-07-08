@@ -12,10 +12,12 @@ Functions:
 
 
 import numpy as np
+from sympy import symbols, solve
+from sympy import Matrix as symMatrix
 
 
 class AffineTransform:
-    """A class to represent affine transformations.
+    """A class to represent callable affine transformations.
 
     ...
 
@@ -33,6 +35,7 @@ class AffineTransform:
         """Initialise an affine transformation of the form Ax+B."""
         matShape = np.shape(squareMatrix)
         d = matShape[0]
+
         assert len(matShape) == 2, "squareMatrix must be two dimensional"
         assert matShape[1] == d, "squareMatrix must be a square matrix"
         assert np.shape(translationVector) == (d, 1),\
@@ -57,6 +60,7 @@ class AffineTransform:
             The result of applying the transformation to v.
         """
         d = self.dimension
+
         assert isinstance(pow, int), "pow must be an int"
         assert np.shape(v) == (d, 1), "v must have shape ("+d+", 1)"
 
@@ -90,6 +94,201 @@ class AffineTransform:
 
 
 class Framework:
+    """A class to represent classical rigidity frameworks.
+
+    ...
+
+    Attributes
+    ----------
+    graph : tuple
+        graph[0] is a list of vertices in the graph.
+        graph[1] is a dictionary of edges.
+    config : list of numpy.matrix
+        List of dx1 matrices containing the coordinates of
+        the of the vertices in the framework
+    dimension : int
+        The dimension of the Euclidean space in which to
+        embed the framework.
+
+    Methods
+    -------
+    rigidityMatrix
+        Returns the numeric rigidity matrix of the framework.
+    symbolicRigidityMatrix
+        Returns the symbolic rigidity matrix of the framework,
+        making use of sympy.Matrix.
+    infinitesimalFlex
+        Finds the non-trivial infinitesimal flexes of the
+        framework if the framework is flexible.
+    """
+
+    def __init__(self, G, P):
+        """Initialise a framework.
+
+        Params
+        ------
+        G : tuple
+            graph[0] must be a list of vertices in the graph,
+            of the form [0, 1, ..., n]
+            graph[1] must be a dictionary of edges. Each key
+            must be  a vertex, and its corresponding value a
+            list of edges that vertex is adjacent to. In this
+            implementation of a graph, we do not allow loops
+            or multiple edges.
+        P : list of numpy.matrix
+            dx1 vectors for the configuration of the framework.
+        """
+        verts = G[0]
+        edges = G[1]
+
+        # Validate input
+        assert type(verts) == list, "Vertices of G must be a list"
+
+        nv = len(verts)
+        assert verts == [i for i in range(nv)],\
+            "Vertices of G must have the form [0, 1, ..., nv]"
+
+        assert type(edges) == dict, "Edges of G must be a dict"
+        for vert, edge in edges.items():
+            assert vert in verts, "Edges must comprise of vertices"
+            for end in edge:
+                assert end in verts, "Edges must comprise of vertices"
+            assert list(set(edge)) == edge, "No multiple edges allowed"
+            assert vert not in edge, "No loops allowed"
+
+        assert type(P) == list, "P must be a list"
+        assert len(P) == nv, ("There must be the same number of vertices"
+                              " as points in the configuration")
+
+        if nv == 0:
+            d = 0
+        else:
+            for vector in P:
+                assert type(vector) == np.matrix,\
+                    "P must be a list of numpy.matrix"
+
+            vShape = np.shape(P[0])
+            assert len(vShape) == 2, "Elements of p must be 2-dimensional"
+            assert vShape[1] == 1, "Elements of p must have shape (d,1)"
+            for vector in P:
+                assert np.shape(vector) == vShape, \
+                    "All elements of P must have the same shape"
+
+            d = vShape[0]
+
+        self.graph = G
+        self.config = P
+        self.dimension = d
+
+    def rigidityMatrix(self):
+        """Create the numerical rigidity matrix.
+
+        Returns
+        -------
+        R : numpy.ndarray
+            The rigidity matrix of (G,p).
+        """
+        verts, edges = self.graph
+        edgesFlat = [edge for adjList in edges.values() for edge in adjList]
+        nEdges = len(edgesFlat)
+        nVerts = len(verts)
+        row = 0
+        d = self.dimension
+
+        R = np.zeros(shape=(nEdges, d*nVerts))
+        for i in verts:
+            nbs = edges[i]
+            for j in nbs:
+                edgeVector = self.config[i] - self.config[j]
+                R[row, d*i: d*(i+1)] = edgeVector.transpose()
+                R[row, d*j: d*(j+1)] = -1 * edgeVector.transpose()
+
+                row += 1
+        return R
+
+    def symbolicRigidityMatrix(self):
+        """Create the symbolic rigidity matrix.
+
+        Returns
+        -------
+        R : MutableDenseMatrix
+            The rigidity matrix of (G,p).
+        """
+        verts, edges = self.graph
+        edgesFlat = [edge for adjList in edges.values() for edge in adjList]
+        nEdges = len(edgesFlat)
+        nVerts = len(verts)
+        row = 0
+
+        R = symMatrix.zeros(nEdges, nVerts)
+        for i in verts:
+            nbs = edges[i]
+            for j in nbs:
+                R[row, i:i+1] = [symbols('p' + str(i)) - symbols('p' + str(j))]
+                R[row, j:j+1] = [symbols('p' + str(j)) - symbols('p' + str(i))]
+
+                row += 1
+        return R
+
+    def infinitesimalFlex(self):
+        """Calculate a non-trivial infinitesimal flex if such a flex exists.
+
+        Returns
+        -------
+        flex : list
+            A non-trivial infinitesimal flex if one exists, else all zeros.
+        """
+        verts, edges = self.graph
+        nVerts = len(verts)
+        d = self.dimension
+        P = self.config
+
+        bars = [P[i]-P[j] for i in verts for j in edges[i] if i < j]
+
+        # Create a list of symbols that will represent our flex
+        flex = []
+        for i in range(nVerts):
+            col = symMatrix([symbols('x' + str(i) + str(k)) for k in range(d)])
+            flex.append(col)
+
+        # Create a list of constraints that fix the first point in the
+        # configuration, then constrains the second flex to be in the
+        # line between p0 and p1, the third flex to lie in the plan
+        # defined by p0, p1 and p2 and so on. This is possible if n > dim
+        # and the configuration is in general position. We do this by finding
+        # the nullspace of the matrix of vectors that define the hyperplane,
+        # which gives a normal vector. To ensure the flex remains in the
+        # hyperplane, we enforce that the dot product between the normal and
+        # the flex is zero.
+        nonTrivConstraints = []
+        for entry in flex[0]:
+            nonTrivConstraints.append(entry)
+
+        p0 = P[0]
+        for i in range(1, d):
+            vects = [p0 - pi for pi in P[1:i+1]]
+            fixedHypPlane = symMatrix([v.transpose() for v in vects])
+            normal = fixedHypPlane.nullspace()[0]
+
+            constraint = flex[i].dot(normal)
+            nonTrivConstraints.append(constraint)
+
+        # Solve the system and apply the constraints to flex
+        nonTrivSoln = solve(nonTrivConstraints)
+        flex = [delta.subs(nonTrivSoln) for delta in flex]
+
+        # Create the constraints necessary for infinitesimal rigidity
+        flexEqns = [flex[i]-flex[j] for i in verts for j in edges[i] if i < j]
+        rigidConstraints = [bar.dot(flexEqns[i]) for i, bar in enumerate(bars)]
+
+        # Solve the system
+        soln = solve(rigidConstraints, dict=True)
+        flex = [delta.subs(soln[0]) for delta in flex]
+
+        return flex
+
+
+class ScrewFramework:
     """A class to represent infinite, screw periodic frameworks.
 
     ...
@@ -105,27 +304,24 @@ class Framework:
     baseConfig : list of numpy.matrix
         List of 3x1 matrices containing the coordinates of
         the 'base' or 'identity' vertices.
-    nMax : tuple of int
-        The largest group element of Z^2 to display when
-        drawing a portion of the infinite framework.
     """
-    def __init__(self, G, P, n, T1, T2):
+
+    def __init__(self, G, P, T1, T2):
         self.graph = G
         self.baseConfig = P
-        self.nMax = n
         self.T1 = T1
         self.T2 = T2
 
-    def vertexLocation(self, r_id, n):
+    def vertexLocation(self, idVector, n):
         n1, n2 = n
 
-        r = self.T1(r_id, pow=n1)
+        r = self.T1(idVector, pow=n1)
         r = self.T2(r, pow=n2)
 
         return r
 
-    def repeatedConfig(self):
-        n1, n2 = self.nMax
+    def repeatedConfig(self, nMax):
+        n1, n2 = nMax
         nv = len(self.baseConfig)
         repeatedConfig = np.zeros((nv, n1 + 1, n2 + 1, 3))
 
@@ -149,7 +345,7 @@ class Framework:
         edgesFlat = [edge for adjList in edges.values() for edge in adjList]
         nEdges = len(edgesFlat)
         nVerts = len(vertices)
-        count = 0
+        row = 0
 
         R = np.zeros(shape=(nEdges, 3*nVerts))
         for i in vertices:
@@ -159,12 +355,12 @@ class Framework:
                 marking = edge[1:]
 
                 edgeVector = self.edgeVector((i, j), marking)
-                current = R[count, 3*i: 3*(i+1)]
-                R[count, 3*i: 3*(i+1)] = current + edgeVector.transpose()
+                current = R[row, 3*i: 3*(i+1)]
+                R[row, 3*i: 3*(i+1)] = current + edgeVector.transpose()
 
                 rEdgeVector = self.edgeVector((j, i), [-n for n in marking])
-                current = R[count, 3*j: 3*(j+1)]
-                R[count, 3*j: 3*(j+1)] = current + rEdgeVector.transpose()
+                current = R[row, 3*j: 3*(j+1)]
+                R[row, 3*j: 3*(j+1)] = current + rEdgeVector.transpose()
 
-                count += 1
+                row += 1
         return R
