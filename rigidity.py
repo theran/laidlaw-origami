@@ -24,9 +24,9 @@ class AffineTransform:
 
     Attributes
     ----------
-    linear : numpy.matrix
-        dxd matrix for linear component of the transformation
-    translation : numpy.matrix
+    linear : numpy.ndarray
+        dxd array for linear component of the transformation
+    translation : numpy.ndarray
         dx1 translational component of the transformation
     dimension : int
         dimension of the space in which the transformation acts
@@ -45,6 +45,8 @@ class AffineTransform:
         self.dimension = d
         self.linear = squareMatrix
         self.translation = translationVector
+        self.__invertible = None
+        self.__inverse = None
 
     def __call__(self, v, pow=1):
         """Apply the affine transformation to a vector.
@@ -69,16 +71,20 @@ class AffineTransform:
 
         if pow >= 1:
             for i in range(pow):
-                ans = self.linear*ans + self.translation
+                ans = self.linear@ans + self.translation
         elif pow <= -1:
             assert self.isInvertible(), "Transformation is not invertible"
-            for i in range(abs(pow)):
-                ans = (self.linear**(-1))*(ans - self.translation)
+            ans = self.inverse()(v, abs(pow))
         return ans
 
     def isInvertible(self):
         """Check if transformation is invertible."""
-        return np.linalg.matrix_rank(self.linear) == self.dimension
+        if self.__invertible is None:
+            if np.linalg.matrix_rank(self.linear) == self.dimension:
+                self.__invertible = True
+            else:
+                self.__invertible = False
+        return self.__invertible
 
     def inverse(self):
         """Return the inverse affine transformation if such a transformation exists.
@@ -89,9 +95,12 @@ class AffineTransform:
         """
         assert self.isInvertible(), "Transformation is not invertible"
 
-        invLinear = self.linear**-1
-        invTranslation = -1*self.translation
-        return AffineTransform(invLinear, invTranslation)
+        if self.__inverse is None:
+            invLinear = np.linalg.inv(self.linear)
+            invTranslation = -1*self.translation
+            self.__inverse = AffineTransform(invLinear, invTranslation)
+
+        return self.__inverse
 
 
 class Framework:
@@ -394,3 +403,30 @@ class ScrewFramework:
 
                 row += 1
         return R
+
+    def draw(self, nMax):
+        verts, edges = self.graph
+        repeatedConfig = self.repeatedConfig(nMax)
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+
+        for v in verts:
+            repeats = repeatedConfig[v,:,:,:]
+            xs = repeats[:,:,0]
+            ys = repeats[:,:,1]
+            zs = repeats[:,:,2]
+
+            ax.scatter(xs,ys,zs)    
+
+        for v in verts:
+            nbs = edges[v]
+            for endNode, edge in enumerate(edges):
+                if edge != None:
+                    for i in range(n[0]+1):
+                        for j in range(n[1]+1):
+                            if i + edge[0] <= n[0] and j + edge[1] <= n[1]:
+                                start = conf[vertex,i,j]
+                                end = conf[endNode, i + edge[0], j + edge[1]]
+                                ax2.plot([start[0], end[0]], [start[1], end[1]], [start[2], end[2]], '-b', alpha = 0.5)                    
+                    
+        plt.show()
