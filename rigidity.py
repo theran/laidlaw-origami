@@ -14,6 +14,7 @@ Functions:
 import numpy as np
 from sympy import symbols, solve
 from sympy import Matrix as symMatrix
+import matplotlib.pyplot as plt
 
 
 class AffineTransform:
@@ -68,11 +69,11 @@ class AffineTransform:
 
         if pow >= 1:
             for i in range(pow):
-                ans = self.rotation*ans + self.translation
+                ans = self.linear*ans + self.translation
         elif pow <= -1:
             assert self.isInvertible(), "Transformation is not invertible"
             for i in range(abs(pow)):
-                ans = (self.rotation**(-1))*(ans - self.translation)
+                ans = (self.linear**(-1))*(ans - self.translation)
         return ans
 
     def isInvertible(self):
@@ -190,7 +191,7 @@ class Framework:
         """
         verts, edges = self.graph
         edgesFlat = [edge for adjList in edges.values() for edge in adjList]
-        nEdges = len(edgesFlat)
+        nEdges = len(edgesFlat) // 2
         nVerts = len(verts)
         row = 0
         d = self.dimension
@@ -199,11 +200,12 @@ class Framework:
         for i in verts:
             nbs = edges[i]
             for j in nbs:
-                edgeVector = self.config[i] - self.config[j]
-                R[row, d*i: d*(i+1)] = edgeVector.transpose()
-                R[row, d*j: d*(j+1)] = -1 * edgeVector.transpose()
+                if i < j:
+                    edgeVector = self.config[i] - self.config[j]
+                    R[row, d*i: d*(i+1)] = edgeVector.transpose()
+                    R[row, d*j: d*(j+1)] = -1 * edgeVector.transpose()
 
-                row += 1
+                    row += 1
         return R
 
     def symbolicRigidityMatrix(self):
@@ -216,7 +218,7 @@ class Framework:
         """
         verts, edges = self.graph
         edgesFlat = [edge for adjList in edges.values() for edge in adjList]
-        nEdges = len(edgesFlat)
+        nEdges = len(edgesFlat) // 2
         nVerts = len(verts)
         row = 0
 
@@ -224,10 +226,12 @@ class Framework:
         for i in verts:
             nbs = edges[i]
             for j in nbs:
-                R[row, i:i+1] = [symbols('p' + str(i)) - symbols('p' + str(j))]
-                R[row, j:j+1] = [symbols('p' + str(j)) - symbols('p' + str(i))]
+                if i < j:
+                    edgeSymb = symbols('p' + str(i)) - symbols('p' + str(j))
+                    R[row, i:i+1] = [edgeSymb]
+                    R[row, j:j+1] = [-1 * edgeSymb]
 
-                row += 1
+                    row += 1
         return R
 
     def infinitesimalFlex(self):
@@ -242,6 +246,7 @@ class Framework:
         nVerts = len(verts)
         d = self.dimension
         P = self.config
+        P = [symMatrix(vector) for vector in P]
 
         bars = [P[i]-P[j] for i in verts for j in edges[i] if i < j]
 
@@ -286,6 +291,31 @@ class Framework:
         flex = [delta.subs(soln[0]) for delta in flex]
 
         return flex
+
+    def draw(self):
+        """Draw the framework with given configuration."""
+        d = self.dimension
+        assert d == 2 or d == 3,\
+            "Unfortunately, we cannot draw in dimensions higher than 3"
+
+        fig = plt.figure()
+        if d == 2:
+            ax = fig.add_subplot()
+        else:
+            ax = fig.add_subplot(projection='3d')
+
+        verts, edges = self.graph
+        P = self.config
+        PMat = np.array(np.column_stack(P))
+
+        for i in verts:
+            for j in edges[i]:
+                if i < j:
+                    ri = P[i]
+                    rj = P[j]
+                    ax.plot(*[[ri[k, 0], rj[k, 0]] for k in range(d)], '-k')
+
+        ax.scatter(*[PMat[i, :] for i in range(d)])
 
 
 class ScrewFramework:
