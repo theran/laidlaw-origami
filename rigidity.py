@@ -113,8 +113,8 @@ class Framework:
     graph : tuple
         graph[0] is a list of vertices in the graph.
         graph[1] is a dictionary of edges.
-    config : list of numpy.matrix
-        List of dx1 matrices containing the coordinates of
+    config : list of numpy.ndarray
+        List of dx1 arrays containing the coordinates of
         the of the vertices in the framework
     dimension : int
         The dimension of the Euclidean space in which to
@@ -145,7 +145,7 @@ class Framework:
             list of edges that vertex is adjacent to. In this
             implementation of a graph, we do not allow loops
             or multiple edges.
-        P : list of numpy.matrix
+        P : list of numpy.ndarray
             dx1 vectors for the configuration of the framework.
         """
         verts = G[0]
@@ -174,8 +174,8 @@ class Framework:
             d = 0
         else:
             for vector in P:
-                assert type(vector) == np.matrix,\
-                    "P must be a list of numpy.matrix"
+                assert type(vector) == np.ndarray,\
+                    "P must be a list of numpy.ndarray"
 
             vShape = np.shape(P[0])
             assert len(vShape) == 2, "Elements of p must be 2-dimensional"
@@ -315,7 +315,7 @@ class Framework:
 
         verts, edges = self.graph
         P = self.config
-        PMat = np.array(np.column_stack(P))
+        PMat = np.column_stack(P)
 
         for i in verts:
             for j in edges[i]:
