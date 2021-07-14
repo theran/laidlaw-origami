@@ -367,8 +367,8 @@ class ScrewFramework:
         for vertex, coord in enumerate(self.baseConfig):
             for i in range(n1+1):
                 for j in range(n2+1):
-                    repeatedConfig[vertex, i, j, :] = self.vertexLocation(
-                        coord, (i, j))[:]
+                    repeatedConfig[vertex, i, j] = self.vertexLocation(
+                        coord, (i, j)).flatten()
         return repeatedConfig
 
     def edgeVector(self, edge, n):
@@ -407,26 +407,32 @@ class ScrewFramework:
     def draw(self, nMax):
         verts, edges = self.graph
         repeatedConfig = self.repeatedConfig(nMax)
+        n1, n2 = nMax
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
 
         for v in verts:
-            repeats = repeatedConfig[v,:,:,:]
-            xs = repeats[:,:,0]
-            ys = repeats[:,:,1]
-            zs = repeats[:,:,2]
+            repeats = repeatedConfig[v, :, :, :]
+            xs = repeats[:, :, 0]
+            ys = repeats[:, :, 1]
+            zs = repeats[:, :, 2]
 
-            ax.scatter(xs,ys,zs)    
+            ax.scatter(xs, ys, zs)
 
         for v in verts:
             nbs = edges[v]
-            for endNode, edge in enumerate(edges):
-                if edge != None:
-                    for i in range(n[0]+1):
-                        for j in range(n[1]+1):
-                            if i + edge[0] <= n[0] and j + edge[1] <= n[1]:
-                                start = conf[vertex,i,j]
-                                end = conf[endNode, i + edge[0], j + edge[1]]
-                                ax2.plot([start[0], end[0]], [start[1], end[1]], [start[2], end[2]], '-b', alpha = 0.5)                    
-                    
+
+            for edge in nbs:
+                endNode = edge[0]
+                mark1, mark2 = edge[1:]
+
+                for i in range(n1+1):
+                    for j in range(n2+1):
+                        if i + mark1 <= n1 and j + mark2 <= n2:
+                            start = repeatedConfig[v, i, j]
+                            end = repeatedConfig[endNode, i + mark1, j + mark2]
+                            ax.plot(*[[start[k], end[k]] for k in range(3)],
+                                    '-b',
+                                    alpha=0.5)
+
         plt.show()
