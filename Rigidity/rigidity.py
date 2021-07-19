@@ -5,6 +5,7 @@ Classes:
 
     AffineTansform
     Framework
+    ScrewFramework
 
 Functions:
 
@@ -12,24 +13,34 @@ Functions:
 
 
 import numpy as np
+from scipy import linalg
 from sympy import symbols, solve
 from sympy import Matrix as symMatrix
 import matplotlib.pyplot as plt
+import utils
 
 
 class AffineTransform:
-    """A class to represent callable affine transformations.
+    """
+    A class to represent callable affine transformations.
 
     ...
 
     Attributes
     ----------
     linear : numpy.ndarray
-        dxd array for linear component of the transformation
+        dxd array for linear component of the transformation.
     translation : numpy.ndarray
-        dx1 translational component of the transformation
+        dx1 translational component of the transformation.
     dimension : int
-        dimension of the space in which the transformation acts
+        dimension of the space in which the transformation acts.
+
+    Methods
+    -------
+    isInvertible
+        Checks if the transformation is invertible
+    inverse
+        Returns the inverse of the transformation.
     """
 
     def __init__(self, squareMatrix, translationVector):
@@ -49,17 +60,18 @@ class AffineTransform:
         self.__inverse = None
 
     def __call__(self, v, pow=1):
-        """Apply the affine transformation to a vector.
+        """
+        Apply the affine transformation to a vector.
 
         Params:
-        v : numpy.matrix
+        v : numpy.ndarray
             The vector in which the transformation is applied. Shape (3,1).
         pow : int
             The number of times in which the transformation is applied.
-            Negative power gives inverses.
+            Negative power gives inverses, if possible.
 
         Returns:
-        ans : numpy.matrix
+        ans : numpy.ndarray
             The result of applying the transformation to v.
         """
         d = self.dimension
@@ -87,11 +99,13 @@ class AffineTransform:
         return self.__invertible
 
     def inverse(self):
-        """Return the inverse affine transformation if such a transformation exists.
+        """
+        Return the inverse affine transformation.
 
         Returns:
         inverse : AffineTransform
-            The inverse of the current affine transformation
+            The inverse of the current affine transformation, if such a
+            transformation exists.
         """
         assert self.isInvertible(), "Transformation is not invertible"
 
@@ -104,7 +118,8 @@ class AffineTransform:
 
 
 class Framework:
-    """A class to represent classical rigidity frameworks.
+    """
+    A class to represent classical rigidity frameworks.
 
     ...
 
@@ -113,40 +128,40 @@ class Framework:
     graph : tuple
         graph[0] is a list of vertices in the graph.
         graph[1] is a dictionary of edges.
-    config : list of numpy.ndarray
-        List of dx1 arrays containing the coordinates of
-        the of the vertices in the framework
+    config : numpy.ndarray
+        dxn array with columns as points of the configuration of the
+            framework.
     dimension : int
-        The dimension of the Euclidean space in which to
-        embed the framework.
+        The dimension of the Euclidean space in which to embed the framework.
 
     Methods
     -------
     rigidityMatrix
         Returns the numeric rigidity matrix of the framework.
     symbolicRigidityMatrix
-        Returns the symbolic rigidity matrix of the framework,
-        making use of sympy.Matrix.
+        Returns the symbolic rigidity matrix of the framework, making use of
+        sympy.Matrix.
     infinitesimalFlex
-        Finds the non-trivial infinitesimal flexes of the
-        framework if the framework is flexible.
+        Finds the non-trivial infinitesimal flexes of the framework if the
+        framework is flexible.
     """
 
     def __init__(self, G, P):
-        """Initialise a framework.
+        """
+        Initialise a framework.
 
         Params
         ------
         G : tuple
-            graph[0] must be a list of vertices in the graph,
-            of the form [0, 1, ..., n]
-            graph[1] must be a dictionary of edges. Each key
-            must be  a vertex, and its corresponding value a
-            list of edges that vertex is adjacent to. In this
-            implementation of a graph, we do not allow loops
-            or multiple edges.
-        P : list of numpy.ndarray
-            dx1 vectors for the configuration of the framework.
+            graph[0] must be a list of vertices in the graph, of the form
+            [0, 1, ..., n].
+            graph[1] must be a dictionary of edges. Each key must be  a vertex,
+            and its corresponding value a list of edges that vertex is adjacent
+            to. In this implementation of a graph, we do not allow loops or
+            multiple edges.
+        P : numpy.ndarray
+            dxn array with columns as points of the configuration of the
+            framework.
         """
         verts = G[0]
         edges = G[1]
@@ -166,32 +181,22 @@ class Framework:
             assert list(set(edge)) == edge, "No multiple edges allowed"
             assert vert not in edge, "No loops allowed"
 
-        assert type(P) == list, "P must be a list"
-        assert len(P) == nv, ("There must be the same number of vertices"
-                              " as points in the configuration")
+        assert type(P) == np.ndarray, "P must be an array"
+        assert P.shape[1] == nv, ("There must be the same number of vertices"
+                                  " as points in the configuration")
 
         if nv == 0:
             d = 0
         else:
-            for vector in P:
-                assert type(vector) == np.ndarray,\
-                    "P must be a list of numpy.ndarray"
-
-            vShape = np.shape(P[0])
-            assert len(vShape) == 2, "Elements of p must be 2-dimensional"
-            assert vShape[1] == 1, "Elements of p must have shape (d,1)"
-            for vector in P:
-                assert np.shape(vector) == vShape, \
-                    "All elements of P must have the same shape"
-
-            d = vShape[0]
+            d = len(P)
 
         self.graph = G
         self.config = P
         self.dimension = d
 
     def rigidityMatrix(self):
-        """Create the numerical rigidity matrix.
+        """
+        Create the numerical rigidity matrix.
 
         Returns
         -------
@@ -210,7 +215,7 @@ class Framework:
             nbs = edges[i]
             for j in nbs:
                 if i < j:
-                    edgeVector = self.config[i] - self.config[j]
+                    edgeVector = self.config[:, i] - self.config[:, j]
                     R[row, d*i: d*(i+1)] = edgeVector.transpose()
                     R[row, d*j: d*(j+1)] = -1 * edgeVector.transpose()
 
@@ -218,7 +223,8 @@ class Framework:
         return R
 
     def symbolicRigidityMatrix(self):
-        """Create the symbolic rigidity matrix.
+        """
+        Create the symbolic rigidity matrix.
 
         Returns
         -------
@@ -244,7 +250,8 @@ class Framework:
         return R
 
     def infinitesimalFlex(self):
-        """Calculate a non-trivial infinitesimal flex if such a flex exists.
+        """
+        Calculate a non-trivial infinitesimal flex if such a flex exists.
 
         Returns
         -------
@@ -254,10 +261,9 @@ class Framework:
         verts, edges = self.graph
         nVerts = len(verts)
         d = self.dimension
-        P = self.config
-        P = [symMatrix(vector) for vector in P]
+        P = symMatrix(self.config)
 
-        bars = [P[i]-P[j] for i in verts for j in edges[i] if i < j]
+        bars = [P[:, i]-P[:, j] for i in verts for j in edges[i] if i < j]
 
         # Create a list of symbols that will represent our flex
         flex = []
@@ -266,21 +272,21 @@ class Framework:
             flex.append(col)
 
         # Create a list of constraints that fix the first point in the
-        # configuration, then constrains the second flex to be in the
-        # line between p0 and p1, the third flex to lie in the plan
-        # defined by p0, p1 and p2 and so on. This is possible if n > dim
-        # and the configuration is in general position. We do this by finding
-        # the nullspace of the matrix of vectors that define the hyperplane,
-        # which gives a normal vector. To ensure the flex remains in the
-        # hyperplane, we enforce that the dot product between the normal and
-        # the flex is zero.
+        # configuration, then constrains the second flex to be in the line
+        # between p0 and p1, the third flex to lie in the plan# defined by p0,
+        # p1 and p2 and so on. This is possible if n > dim and the
+        # configuration is in general position. We do this by finding the
+        # nullspace of the matrix of vectors that define the hyperplane, which
+        # gives a normal vector. To ensure the flex remains in the hyperplane,
+        # we enforce that the dot product between the normal and the flex is
+        # zero.
         nonTrivConstraints = []
         for entry in flex[0]:
             nonTrivConstraints.append(entry)
 
-        p0 = P[0]
+        p0 = P[:, 0]
         for i in range(1, d):
-            vects = [p0 - pi for pi in P[1:i+1]]
+            vects = [p0 - pi for pi in P[:, 1:i+1].T]
             fixedHypPlane = symMatrix([v.transpose() for v in vects])
             normal = fixedHypPlane.nullspace()[0]
 
@@ -315,20 +321,40 @@ class Framework:
 
         verts, edges = self.graph
         P = self.config
-        PMat = np.column_stack(P)
 
         for i in verts:
             for j in edges[i]:
                 if i < j:
-                    ri = P[i]
-                    rj = P[j]
+                    ri = P[:, i]
+                    rj = P[:, j]
                     ax.plot(*[[ri[k, 0], rj[k, 0]] for k in range(d)], '-k')
 
-        ax.scatter(*[PMat[i, :] for i in range(d)])
+        ax.scatter(*[P[i, :] for i in range(d)])
+
+    def nonTrivialFlex(self):
+        P = self.config
+        R = self.rigidityMatrix()
+        n = len(P.T)
+        d = self.dimension
+
+        Tx = np.array([1, 0, 0] * n)
+        Ty = np.array([0, 1, 0] * n)
+        Tz = np.array([0, 0, 1] * n)
+        trivials = np.column_stack([Tx, Ty, Tz])
+
+        rotations = utils.infRotations(d)
+        for rotMat in rotations:
+            infRot = (rotMat@P).ravel('F')
+            trivials = np.column_stack([trivials, infRot])
+
+        kernell = linalg.null_space(R)
+
+        return utils.projectAway(trivials, kernell)
 
 
 class ScrewFramework:
-    """A class to represent infinite, screw periodic frameworks.
+    """
+    A class to represent infinite, screw periodic frameworks.
 
     ...
 
@@ -336,13 +362,12 @@ class ScrewFramework:
     ----------
     graph : tuple
         graph[0] is a list of vertices in the base graph.
-        graph[1] is a dictionary of edge markings. Each key
-        is a vertex, and its corresponding value is a list
-        of 3-tuple markings that give the end vertex of the
-        edge, and the group element in Z^2 of the edge.
+        graph[1] is a dictionary of edge markings. Each key is a vertex, and
+        its corresponding value is a list of 3-tuple markings that give the end
+        vertex of the edge, and the group element in Z^2 of the edge.
     baseConfig : list of numpy.matrix
-        List of 3x1 matrices containing the coordinates of
-        the 'base' or 'identity' vertices.
+        List of 3x1 matrices containing the coordinates of the 'base' or
+        'identity' vertices.
     """
 
     def __init__(self, G, P, T1, T2):
