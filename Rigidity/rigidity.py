@@ -63,14 +63,16 @@ class AffineTransform:
         """
         Apply the affine transformation to a vector.
 
-        Params:
+        Parameters
+        ----------
         v : numpy.ndarray
             The vector in which the transformation is applied. Shape (3,1).
         pow : int
             The number of times in which the transformation is applied.
             Negative power gives inverses, if possible.
 
-        Returns:
+        Returns
+        -------
         ans : numpy.ndarray
             The result of applying the transformation to v.
         """
@@ -102,7 +104,8 @@ class AffineTransform:
         """
         Return the inverse affine transformation.
 
-        Returns:
+        Returns
+        -------
         inverse : AffineTransform
             The inverse of the current affine transformation, if such a
             transformation exists.
@@ -144,14 +147,18 @@ class Framework:
     infinitesimalFlex
         Finds the non-trivial infinitesimal flexes of the framework if the
         framework is flexible.
+    draw
+        Draws the framework using matplotlib.pyplot.
+    nonTrivialFlex
+        Calculates an orthonormal basis for the space of non-trivial flexes.
     """
 
     def __init__(self, G, P):
         """
         Initialise a framework.
 
-        Params
-        ------
+        Parameters
+        ----------
         G : tuple
             graph[0] must be a list of vertices in the graph, of the form
             [0, 1, ..., n].
@@ -228,7 +235,7 @@ class Framework:
 
         Returns
         -------
-        R : MutableDenseMatrix
+        R : sympy.MutableDenseMatrix
             The rigidity matrix of (G,p).
         """
         verts, edges = self.graph
@@ -332,6 +339,14 @@ class Framework:
         ax.scatter(*[P[i, :] for i in range(d)])
 
     def nonTrivialFlex(self):
+        """
+        Calculate a basis for the non-trivial flexes of the framework.
+
+        Returns
+        -------
+        M : numpy.ndarray
+            An orthonormal basis for the non-trivial flexes
+        """
         P = self.config
         R = self.rigidityMatrix()
         n = len(P.T)
