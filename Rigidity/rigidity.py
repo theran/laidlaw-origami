@@ -1,14 +1,11 @@
 """
 Create tools to work with rigidity theory.
 
-Classes:
-
-    AffineTansform
-    Framework
-    ScrewFramework
-
-Functions:
-
+Classes
+-------
+AffineTansform
+Framework
+ScrewFramework
 """
 
 
@@ -24,16 +21,21 @@ class AffineTransform:
     """
     A class to represent callable affine transformations.
 
-    ...
+    Parameters
+    ----------
+    squareMatrix : numpy.ndarray
+        (d,d) array for linear component of the transformation.
+    translationVector : numpy.ndarray
+        (d,1) translational component of the transformation.
 
     Attributes
     ----------
     linear : numpy.ndarray
-        dxd array for linear component of the transformation.
+        (d,d) array for linear component of the transformation.
     translation : numpy.ndarray
-        dx1 translational component of the transformation.
+        (d,1) translational component of the transformation.
     dimension : int
-        dimension of the space in which the transformation acts.
+        Dimension of the space in which the transformation acts.
 
     Methods
     -------
@@ -73,7 +75,7 @@ class AffineTransform:
 
         Returns
         -------
-        ans : numpy.ndarray
+        numpy.ndarray
             The result of applying the transformation to v.
         """
         d = self.dimension
@@ -124,7 +126,18 @@ class Framework:
     """
     A class to represent classical rigidity frameworks.
 
-    ...
+    Parameters
+    ----------
+    G : tuple
+        graph[0] must be a list of vertices in the graph, of the form
+        [0, 1, ..., n].
+        graph[1] must be a dictionary of edges. Each key must be  a vertex,
+        and its corresponding value a list of edges that vertex is adjacent
+        to. In this implementation of a graph, we do not allow loops or
+        multiple edges.
+    P : numpy.ndarray
+        (d,n) array with columns as points of the configuration of the
+        framework.
 
     Attributes
     ----------
@@ -132,8 +145,8 @@ class Framework:
         graph[0] is a list of vertices in the graph.
         graph[1] is a dictionary of edges.
     config : numpy.ndarray
-        dxn array with columns as points of the configuration of the
-            framework.
+        (d,n) array with columns as points of the configuration of the
+        framework.
     dimension : int
         The dimension of the Euclidean space in which to embed the framework.
 
@@ -154,22 +167,7 @@ class Framework:
     """
 
     def __init__(self, G, P):
-        """
-        Initialise a framework.
-
-        Parameters
-        ----------
-        G : tuple
-            graph[0] must be a list of vertices in the graph, of the form
-            [0, 1, ..., n].
-            graph[1] must be a dictionary of edges. Each key must be  a vertex,
-            and its corresponding value a list of edges that vertex is adjacent
-            to. In this implementation of a graph, we do not allow loops or
-            multiple edges.
-        P : numpy.ndarray
-            dxn array with columns as points of the configuration of the
-            framework.
-        """
+        """Initialise a framework."""
         verts = G[0]
         edges = G[1]
 
@@ -207,7 +205,7 @@ class Framework:
 
         Returns
         -------
-        R : numpy.ndarray
+        numpy.ndarray
             The rigidity matrix of (G,p).
         """
         verts, edges = self.graph
@@ -229,29 +227,40 @@ class Framework:
                     row += 1
         return R
 
-    def symbolicRigidityMatrix(self):
+    def symbolicRigidityMatrix(self, var='p'):
         """
         Create the symbolic rigidity matrix.
 
+        Parameters
+        ----------
+        var : str
+            The variable to use in the rigidity matrix.
+
         Returns
         -------
-        R : sympy.MutableDenseMatrix
+        sympy.MutableDenseMatrix
             The rigidity matrix of (G,p).
         """
         verts, edges = self.graph
         edgesFlat = [edge for adjList in edges.values() for edge in adjList]
         nEdges = len(edgesFlat) // 2
         nVerts = len(verts)
+        d = self.dimension
         row = 0
 
-        R = symMatrix.zeros(nEdges, nVerts)
+        R = symMatrix.zeros(nEdges, nVerts*d)
         for i in verts:
             nbs = edges[i]
+            coords = var + '_' + str(i) + r'\,:' + str(d)
+            pi = np.array(symbols(coords))
             for j in nbs:
                 if i < j:
-                    edgeSymb = symbols('p' + str(i)) - symbols('p' + str(j))
-                    R[row, i:i+1] = [edgeSymb]
-                    R[row, j:j+1] = [-1 * edgeSymb]
+                    coords = var + '_' + str(j) + r'\,:' + str(d)
+                    pj = np.array(symbols(coords))
+
+                    edgeSymb = (pi - pj).reshape(1, 3)
+                    R[row, i*d:(i+1)*d] = edgeSymb
+                    R[row, j*d:(j+1)*d] = -1 * edgeSymb
 
                     row += 1
         return R
