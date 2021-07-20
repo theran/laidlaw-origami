@@ -1,5 +1,5 @@
 """
-This module provides utility functions for working with rigidity.
+This module provides utility functions for working with `rigidity`.
 
 Functions
 ---------
@@ -17,10 +17,10 @@ import scipy.linalg
 
 def projectionMatrix(X):
     """
-    Generate a projection matrix for X.
+    Generate a projection matrix for `X`.
 
     Returns an array representing the projection matrix from R^n to the
-    subspace spanned by the columns of X.
+    subspace spanned by the columns of `X`.
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ def projectionMatrix(X):
 
     Returns
     -------
-    Y : numpy.ndarray
+    numpy.ndarray
         The representation of the projection matrix.
     """
     orthX = scipy.linalg.orth(X)
@@ -39,7 +39,7 @@ def projectionMatrix(X):
 
 def project(X, V):
     """
-    Project the vectors of V onto the column span of X.
+    Project the vectors of `V` onto the column span of `X`.
 
     Returns an array representing an orthonormal basis of span(Z), where Z is
     the projection of the columns in V onto the column span of X.
@@ -53,7 +53,7 @@ def project(X, V):
 
     Returns
     -------
-    Y : numpy.ndarray
+    numpy.ndarray
         The representation of the basis of the projected vectors.
     """
     P = projectionMatrix(X)
@@ -62,11 +62,11 @@ def project(X, V):
 
 def projectAway(X, V):
     """
-    Project the vectors of V away from the column span of X.
+    Project the vectors of `V` away from the column span of `X`.
 
     Returns an array representing an orthonormal basis of span(Z), where Z is
     the projection of the columns in V onto the orthogonal complement of the
-    column span of X.
+    column span of `X`.
 
     Parameters
     ----------
@@ -77,7 +77,7 @@ def projectAway(X, V):
 
     Returns
     -------
-    Y : numpy.ndarray
+    numpy.ndarray
         The representation of the basis of the projected vectors.
     """
     dim = X.shape[0]
@@ -87,20 +87,20 @@ def projectAway(X, V):
 
 def infRotations(d):
     """
-    Create a generator for the d-dimensional infinitesimal rotation matrices.
+    Create a generator for the `d`-dimensional infinitesimal rotation matrices.
 
     The infinitesimal rotations matrices are the square matrices P_ij where
-    P_ij[i,j] = 1, P_ij[j,i] = -1 and 0 otherwise, for all 1 <= i < j <= d.
+    P_ij[i,j] = 1, P_ij[j,i] = -1 and 0 otherwise, for all 1 <= i < j <= `d`.
 
     Parameters
     ----------
     d : int
         The dimension of the rotation matrices
 
-    Returns
+    Yields
     -------
-    rotations : generator
-        The initialised generator object
+    rotation : numpy.ndarray
+        infinitesimal rotation matrix
     """
     assert d > 1, "d must be greater than 1"
 
