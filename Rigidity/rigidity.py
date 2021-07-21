@@ -69,7 +69,7 @@ class AffineTransform:
         ----------
         v : numpy.ndarray
             The vector in which the transformation is applied. Shape (3,1).
-        pow : int
+        pow : int, optional
             The number of times in which the transformation is applied.
             Negative power gives inverses, if possible.
 
@@ -202,7 +202,7 @@ class Framework:
 
     def rigidityMatrix(self):
         """
-        Create the numerical rigidity matrix.
+        Generate the numerical rigidity matrix.
 
         Returns
         -------
@@ -234,7 +234,7 @@ class Framework:
 
         Parameters
         ----------
-        var : str
+        var : str, optional
             The variable to use in the rigidity matrix.
 
         Returns
@@ -324,13 +324,22 @@ class Framework:
 
         return flex
 
-    def draw(self):
-        """Draw the framework with given configuration."""
+    def draw(self, fig=None):
+        """
+        Draw the framework with given configuration.
+
+        Parameters
+        ----------
+        fig : matplotlib.figure.Figure, optional
+            Figure to add the drawing of the framework to.
+        """
         d = self.dimension
         assert d == 2 or d == 3,\
             "Unfortunately, we cannot draw in dimensions higher than 3"
 
-        fig = plt.figure()
+        if fig is not None:
+            fig = plt.figure()
+
         if d == 2:
             ax = fig.add_subplot()
         else:
@@ -421,7 +430,16 @@ class ScrewFramework:
 
         Parameters
         ----------
-        idVector
+        idVertex : int
+            Vertex in the 'base' vertex set of the graph.
+        n: tuple of int
+            Length 2 tuple representing the element of Z^2 that indexes a
+            vertex in the repeating framework.
+
+        Returns
+        -------
+        np.ndarray
+            The (d,) array representing the coordinates the indexed vertex.
         """
         n1, n2 = n
         idVector = self.baseConfig[:, idVertex]
@@ -431,6 +449,28 @@ class ScrewFramework:
         return r
 
     def repeatedConfig(self, nMax):
+        """
+        Generate the coordinates of the repreating.
+
+        This creates a four dimensional array of points to represent the
+        coordinates of a finite portion of the repeating framework from the
+        base copy to the (n1_max, n2_max) copy.
+
+        Parameters
+        ----------
+        nMax : tuple of int
+            Length 2 tuple representing maximum index of the repeating
+            framework to display.
+
+        Returns
+        -------
+        np.ndarray
+            Four-dimensional array representing a finite section of the
+            infinite framework. The first axis represents the vertex, the
+            second and third axis represent the element of Z^2 that indexes the
+            framework, and the fourth axis represents the x, y and z
+            coordinates.
+        """
         n1, n2 = nMax
         vertices = self.graph[0]
         nv = len(vertices)
@@ -444,6 +484,16 @@ class ScrewFramework:
         return repeatedConfig
 
     def edgeVector(self, edge, n):
+        """
+        Calculate the vector between two vertices in the framework.
+
+        Parameters
+        ----------
+        edge : tuple of int
+            Length 2 tuple of integers that represent vertices.
+        n : tuple of int
+            Length 2 tuple representing the marking of the edge.
+        """
         i, j = edge
         p_i = self.baseConfig[:, i]
         Tp_j = self.vertexLocation(j, n)
@@ -451,6 +501,14 @@ class ScrewFramework:
         return Tp_j - p_i
 
     def rigidityMatrix(self):
+        """
+        Generate the the rigidity matrix.
+
+        Returns
+        -------
+        numpy.ndarray
+            The rigidity matrix of (G,p).
+        """
         vertices, edges = self.graph
         edgesFlat = [edge for adjList in edges.values() for edge in adjList]
         nEdges = len(edgesFlat)
@@ -476,6 +534,17 @@ class ScrewFramework:
         return R
 
     def draw(self, nMax):
+        """
+        Draw a portion of the periodic framework.
+
+        Draws the section of the periodic framework from the (0, 0) index to
+        the `nMax` index.
+
+        Parameters
+        ----------
+        nMax : tuple of int
+            The maximum index of the framework to draw.
+        """
         verts, edges = self.graph
         repeatedConfig = self.repeatedConfig(nMax)
         n1, n2 = nMax
@@ -507,5 +576,3 @@ class ScrewFramework:
                                     '-b',
                                     alpha=0.5
                                     )
-
-        plt.show()
