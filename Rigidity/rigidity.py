@@ -33,7 +33,7 @@ class AffineTransform:
     linear : numpy.ndarray
         (d,d) array for linear component of the transformation.
     translation : numpy.ndarray
-        (d,1) translational component of the transformation.
+        (d,) translational component of the transformation.
     dimension : int
         Dimension of the space in which the transformation acts.
 
@@ -52,8 +52,8 @@ class AffineTransform:
 
         assert len(matShape) == 2, "squareMatrix must be two dimensional"
         assert matShape[1] == d, "squareMatrix must be a square matrix"
-        assert np.shape(translationVector) == (d, 1),\
-            "translationVector must have shape ("+d+", 1)"
+        assert len(translationVector) == d,\
+            "translationVector must have shape ("+d+",)"
 
         self.dimension = d
         self.linear = squareMatrix
@@ -81,7 +81,8 @@ class AffineTransform:
         d = self.dimension
 
         assert isinstance(pow, int), "pow must be an int"
-        assert np.shape(v) == (d, 1), "v must have shape ("+d+", 1)"
+        assert np.shape(v)[0] == d,\
+            "v must have have shape (" + str(d) + ", ...)"
 
         ans = v
 
@@ -221,8 +222,8 @@ class Framework:
             for j in nbs:
                 if i < j:
                     edgeVector = self.config[:, i] - self.config[:, j]
-                    R[row, d*i: d*(i+1)] = edgeVector.transpose()
-                    R[row, d*j: d*(j+1)] = -1 * edgeVector.transpose()
+                    R[row, d*i: d*(i+1)] = edgeVector
+                    R[row, d*j: d*(j+1)] = -1 * edgeVector
 
                     row += 1
         return R
@@ -258,7 +259,7 @@ class Framework:
                     coords = var + '_' + str(j) + r'\,:' + str(d)
                     pj = np.array(symbols(coords))
 
-                    edgeSymb = (pi - pj).reshape(1, 3)
+                    edgeSymb = (pi - pj).reshape(1, d)
                     R[row, i*d:(i+1)*d] = edgeSymb
                     R[row, j*d:(j+1)*d] = -1 * edgeSymb
 
@@ -343,7 +344,7 @@ class Framework:
                 if i < j:
                     ri = P[:, i]
                     rj = P[:, j]
-                    ax.plot(*[[ri[k, 0], rj[k, 0]] for k in range(d)], '-k')
+                    ax.plot(*[[ri[k], rj[k]] for k in range(d)], '-k')
 
         ax.scatter(*[P[i, :] for i in range(d)])
 
@@ -361,10 +362,12 @@ class Framework:
         n = len(P.T)
         d = self.dimension
 
-        Tx = np.array([1, 0, 0] * n)
-        Ty = np.array([0, 1, 0] * n)
-        Tz = np.array([0, 0, 1] * n)
-        trivials = np.column_stack([Tx, Ty, Tz])
+        translations = []
+        for i in range(d):
+            translation = np.zeros(d*n)
+            translation[i::d] = 1
+            translations.append(translation)
+        trivials = np.column_stack(translations)
 
         rotations = utils.infRotations(d)
         for rotMat in rotations:
@@ -380,7 +383,18 @@ class ScrewFramework:
     """
     A class to represent infinite, screw periodic frameworks.
 
-    ...
+    Parameters
+    ----------
+    G : list
+        G[0] is a list of vertices in the base graph.
+        G[1] is a dictionary of edge markings. Each key is a vertex, and
+        its corresponding value is a list of 3-tuple markings that give the end
+        vertex of the edge, and the group element in Z^2 of the edge.
+    P : numpy.ndarray
+        (3,n) array containing with columns as the coordinates of the 'base' or
+        'identity' vertices.
+    T1, T2 : AffineTransform
+        Affine transformations that define the periodicity of the graph.
 
     Attributes
     ----------
@@ -389,42 +403,50 @@ class ScrewFramework:
         graph[1] is a dictionary of edge markings. Each key is a vertex, and
         its corresponding value is a list of 3-tuple markings that give the end
         vertex of the edge, and the group element in Z^2 of the edge.
-    baseConfig : list of numpy.matrix
-        List of 3x1 matrices containing the coordinates of the 'base' or
+    baseConfig : numpy.ndarray
+        (3,n) array containing with columns as the coordinates of the 'base' or
         'identity' vertices.
     """
 
     def __init__(self, G, P, T1, T2):
+        """Initialise screw periodic framework."""
         self.graph = G
         self.baseConfig = P
         self.T1 = T1
         self.T2 = T2
 
-    def vertexLocation(self, idVector, n):
+    def vertexLocation(self, idVertex, n):
+        """
+        Calculate the location of a vertex given a base vertex and index.
+
+        Parameters
+        ----------
+        idVector
+        """
         n1, n2 = n
+        idVector = self.baseConfig[:, idVertex]
 
         r = self.T1(idVector, pow=n1)
         r = self.T2(r, pow=n2)
-
         return r
 
     def repeatedConfig(self, nMax):
         n1, n2 = nMax
-        nv = len(self.baseConfig)
+        vertices = self.graph[0]
+        nv = len(vertices)
         repeatedConfig = np.zeros((nv, n1 + 1, n2 + 1, 3))
 
-        for vertex, coord in enumerate(self.baseConfig):
+        for vertex in vertices:
             for i in range(n1+1):
                 for j in range(n2+1):
                     repeatedConfig[vertex, i, j] = self.vertexLocation(
-                        coord, (i, j)).flatten()
+                        vertex, (i, j)).flatten()
         return repeatedConfig
 
     def edgeVector(self, edge, n):
         i, j = edge
-        p_i = self.baseConfig[i]
-        p_j = self.baseConfig[j]
-        Tp_j = self.vertexLocation(p_j, n)
+        p_i = self.baseConfig[:, i]
+        Tp_j = self.vertexLocation(j, n)
 
         return Tp_j - p_i
 
@@ -444,11 +466,11 @@ class ScrewFramework:
 
                 edgeVector = self.edgeVector((i, j), marking)
                 current = R[row, 3*i: 3*(i+1)]
-                R[row, 3*i: 3*(i+1)] = current + edgeVector.transpose()
+                R[row, 3*i: 3*(i+1)] = current + edgeVector
 
                 rEdgeVector = self.edgeVector((j, i), [-n for n in marking])
                 current = R[row, 3*j: 3*(j+1)]
-                R[row, 3*j: 3*(j+1)] = current + rEdgeVector.transpose()
+                R[row, 3*j: 3*(j+1)] = current + rEdgeVector
 
                 row += 1
         return R
@@ -461,10 +483,10 @@ class ScrewFramework:
         ax = fig.add_subplot(projection='3d')
 
         for v in verts:
-            repeats = repeatedConfig[v, :, :, :]
-            xs = repeats[:, :, 0]
-            ys = repeats[:, :, 1]
-            zs = repeats[:, :, 2]
+            repeats = repeatedConfig[v, ...]
+            xs = repeats[..., 0]
+            ys = repeats[..., 1]
+            zs = repeats[..., 2]
 
             ax.scatter(xs, ys, zs)
 
@@ -480,8 +502,10 @@ class ScrewFramework:
                         if i + mark1 <= n1 and j + mark2 <= n2:
                             start = repeatedConfig[v, i, j]
                             end = repeatedConfig[endNode, i + mark1, j + mark2]
-                            ax.plot(*[[start[k], end[k]] for k in range(3)],
+                            ax.plot(*[[start[k],
+                                    end[k]] for k in range(3)],
                                     '-b',
-                                    alpha=0.5)
+                                    alpha=0.5
+                                    )
 
         plt.show()
