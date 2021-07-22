@@ -337,7 +337,7 @@ class Framework:
         assert d == 2 or d == 3,\
             "Unfortunately, we cannot draw in dimensions higher than 3"
 
-        if fig is not None:
+        if fig is None:
             fig = plt.figure()
 
         if d == 2:
