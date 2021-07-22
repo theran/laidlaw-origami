@@ -6,10 +6,13 @@ Functions
     projectionMatrix
     project
     projectAway
+    orth
     infRotations
 
 """
-__all__ = ['projectionMatrix', 'project', 'projectAway', 'infRotations']
+__all__ = ['projectionMatrix', 'project', 'projectAway', 'orth',
+           'infRotations'
+           ]
 
 import numpy as np
 import scipy.linalg
@@ -33,7 +36,7 @@ def projectionMatrix(X):
     numpy.ndarray
         The representation of the projection matrix.
     """
-    orthX = scipy.linalg.orth(X)
+    orthX = orth(X)
     return orthX@orthX.T
 
 
@@ -57,7 +60,7 @@ def project(X, V):
         The representation of the basis of the projected vectors.
     """
     P = projectionMatrix(X)
-    return scipy.linalg.orth(P@V)
+    return orth(P@V)
 
 
 def projectAway(X, V):
@@ -82,7 +85,52 @@ def projectAway(X, V):
     """
     dim = X.shape[0]
     Pa = np.eye(dim) - projectionMatrix(X)
-    return scipy.linalg.orth(Pa@V)
+    return orth(Pa@V)
+
+
+def orth(A, rcond=None, absTol=1e-6):
+    """
+    Construct an orthonormal basis for the column span of A.
+
+    Parameters
+    ----------
+    A : numpy.ndarray
+        Input array
+    rcond : float, optional
+        Relative condition number. Singular values `s` in the singular value
+        decomposition smaller than `rcond * max(s)` are considered zero.
+        Default: floating point eps * max(M,N).
+    absTol : float, optional
+        Absolute tolerance. Singular values `s` in the singular value
+        decomposition smaller than `absTol` are considered zero.
+        Default: 1e-6.
+
+    See also
+    --------
+    scipy.linalg.orth
+
+    Notes
+    -----
+    This is a variation on the scipy.linalg implementation of orth. As well as
+    having a minimum tolerance dependent on the contnt of the SVD, we add the
+    option to specify an absolute tolerance below which singular values are
+    considered zero.
+    """
+    u, s, vh = scipy.linalg.svd(A, full_matrices=False)
+    M, N = u.shape[0], vh.shape[1]
+
+    if rcond is None:
+        rcond = np.finfo(s.dtype).eps * max(M, N)
+
+    relTol = np.amax(s) * rcond
+    tol = max(relTol, absTol)
+
+    num = np.sum(s > tol, dtype=int)
+    Q = u[:, :num]
+
+    if Q.shape[1] == 0:
+        Q = None
+    return Q
 
 
 def infRotations(d):
@@ -100,7 +148,7 @@ def infRotations(d):
     Yields
     -------
     rotation : numpy.ndarray
-        infinitesimal rotation matrix
+        Infinitesimal rotation matrix
     """
     assert d > 1, "d must be greater than 1"
 
