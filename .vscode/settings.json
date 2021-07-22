@@ -1,7 +1,0 @@
-{
-    "python.pythonPath": "C:\\Users\\josep\\Anaconda3\\envs\\laidlaw\\python.exe",
-    "python.linting.pylintEnabled": false,
-    "python.linting.enabled": true,
-    "python.linting.flake8Enabled": true,
-    "cSpell.enabled": true
-}
