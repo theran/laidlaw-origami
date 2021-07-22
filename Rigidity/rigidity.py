@@ -324,21 +324,13 @@ class Framework:
 
         return flex
 
-    def draw(self, fig=None):
-        """
-        Draw the framework with given configuration.
-
-        Parameters
-        ----------
-        fig : matplotlib.figure.Figure, optional
-            Figure to add the drawing of the framework to.
-        """
+    def draw(self):
+        """Draw the framework with given configuration."""
         d = self.dimension
         assert d == 2 or d == 3,\
             "Unfortunately, we cannot draw in dimensions higher than 3"
 
-        if fig is None:
-            fig = plt.figure()
+        fig = plt.figure()
 
         if d == 2:
             ax = fig.add_subplot()
@@ -355,7 +347,22 @@ class Framework:
                     rj = P[:, j]
                     ax.plot(*[[ri[k], rj[k]] for k in range(d)], '-k')
 
-        ax.scatter(*[P[i, :] for i in range(d)])
+        ax.scatter(*P)
+        return fig
+
+    def drawFlex(self, flex, fig=None):
+        if fig is None:
+            fig = self.draw()
+        ax = fig.get_axes()[0]
+
+        d = self.dimension
+        nv = len(self.graph[0])
+        P = self.config
+
+        vectors = np.reshape(flex, (d, nv), 'F')
+
+        ax.quiver(*P, *vectors)
+        return fig
 
     def nonTrivialFlex(self):
         """
