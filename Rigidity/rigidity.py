@@ -163,6 +163,8 @@ class Framework:
         framework is flexible.
     draw
         Draws the framework using matplotlib.pyplot.
+    drawFlex
+        Draws a flex on the framework using matplotlib.pyplot.
     nonTrivialFlex
         Calculates an orthonormal basis for the space of non-trivial flexes.
     """
@@ -324,8 +326,32 @@ class Framework:
 
         return flex
 
-    def draw(self):
-        """Draw the framework with given configuration."""
+    def draw(self, labels=False, fmt='-k', EKwargs={}, VKwargs={}):
+        """
+        Draw the framework with given configuration.
+
+        Parameters
+        ----------
+        labels : bool, optional
+            Whether to draw vertices with or without labels.
+            Default : False
+        fmt : str, optional
+            Format string for drawing edges of the form
+            '[marker][line][colour]'.
+        EKwargs, VKwargs : dict, optional
+            Key word arguments used in the drawing of edges and vertices.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            Figure on which the configuration is drawn.
+
+        See also
+        --------
+        matplotlib.pyplot.plot
+
+        matplotlib.pyplot.scatter
+        """
         d = self.dimension
         assert d == 2 or d == 3,\
             "Unfortunately, we cannot draw in dimensions higher than 3"
@@ -345,12 +371,35 @@ class Framework:
                 if i < j:
                     ri = P[:, i]
                     rj = P[:, j]
-                    ax.plot(*[[ri[k], rj[k]] for k in range(d)], '-k')
+                    edge = np.column_stack([ri, rj])
+                    ax.plot(*edge, fmt, **EKwargs)
 
-        ax.scatter(*P)
+        ax.scatter(*P, **VKwargs)
+
+        if labels:
+            Q = P + 0.02
+            name = 0
+            for vertex in Q.T:
+                ax.text(*vertex, str(name))
+                name += 1
         return fig
 
     def drawFlex(self, flex, fig=None):
+        """
+        Draw a flex on the framework.
+
+        Parametters
+        -----------
+        flex : numpy.ndarray
+            (d*n, ) array representing the flex.
+        fig : matplotlib.figure.Figure, optional
+            The figure to add the flex drawing to.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            The figure on which the flex is added to.
+        """
         if fig is None:
             fig = self.draw()
         ax = fig.get_axes()[0]
@@ -422,6 +471,8 @@ class ScrewFramework:
     baseConfig : numpy.ndarray
         (3,n) array containing with columns as the coordinates of the 'base' or
         'identity' vertices.
+    T1, T2 : AffineTransform
+        The two transformations that define the periodicity of the framework.
     """
 
     def __init__(self, G, P, T1, T2):
@@ -540,7 +591,7 @@ class ScrewFramework:
                 row += 1
         return R
 
-    def draw(self, nMax):
+    def draw(self, nMax, fmt='-b', VKwargs={}, EKwargs={}):
         """
         Draw a portion of the periodic framework.
 
@@ -551,6 +602,17 @@ class ScrewFramework:
         ----------
         nMax : tuple of int
             The maximum index of the framework to draw.
+        fmt : str, optional
+            Format string for drawing edges of the form
+            '[marker][line][colour]'.
+            Default : '-b' (A blue line)
+        EKwargs, VKwargs : dict, optional
+            Key word arguments used in the drawing of edges and vertices.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            Figure on which the portion of the configuration is drawn.
         """
         verts, edges = self.graph
         repeatedConfig = self.repeatedConfig(nMax)
@@ -564,7 +626,7 @@ class ScrewFramework:
             ys = repeats[..., 1]
             zs = repeats[..., 2]
 
-            ax.scatter(xs, ys, zs)
+            ax.scatter(xs, ys, zs, **VKwargs)
 
         for v in verts:
             nbs = edges[v]
@@ -573,13 +635,10 @@ class ScrewFramework:
                 endNode = edge[0]
                 mark1, mark2 = edge[1:]
 
-                for i in range(n1+1):
-                    for j in range(n2+1):
-                        if i + mark1 <= n1 and j + mark2 <= n2:
-                            start = repeatedConfig[v, i, j]
-                            end = repeatedConfig[endNode, i + mark1, j + mark2]
-                            ax.plot(*[[start[k],
-                                    end[k]] for k in range(3)],
-                                    '-b',
-                                    alpha=0.5
-                                    )
+                for i in range(n1+1-mark1):
+                    for j in range(n2+1-mark2):
+                        start = repeatedConfig[v, i, j]
+                        end = repeatedConfig[endNode, i + mark1, j + mark2]
+                        E = np.column_stack([start, end])
+                        ax.plot(*E, fmt, **EKwargs)
+        return fig
