@@ -186,7 +186,8 @@ class Framework:
             assert vert in verts, "Edges must comprise of vertices"
             for end in edge:
                 assert end in verts, "Edges must comprise of vertices"
-            assert list(set(edge)) == edge, "No multiple edges allowed"
+            assert list(set(edge)) == sorted(edge),\
+                "No multiple edges allowed"
             assert vert not in edge, "No loops allowed"
 
         assert type(P) == np.ndarray, "P must be an array"
