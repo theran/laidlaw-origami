@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Edwards"
+  given-names: "Joseph"
+- family-names: "Theran"
+  given-names: "Louis"
+  orcid: "https://orcid.org/0000-0001-5282-4800"
+title: "Origami-Rigidity"
+version: 1.0.0
+date-released: 2021-08-18
+url: "https://github.com/theran/laidlaw-origami"
