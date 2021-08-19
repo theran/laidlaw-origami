@@ -6,7 +6,7 @@ authors:
 - family-names: "Theran"
   given-names: "Louis"
   orcid: "https://orcid.org/0000-0001-5282-4800"
-title: "laidlaw-origami"
+title: "Rigidity: A Package for Studying Rigidity Theory "
 version: 1.0.0
 date-released: 2021-08-18
 url: "https://github.com/theran/laidlaw-origami"
