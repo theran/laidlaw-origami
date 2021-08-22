@@ -11,7 +11,7 @@ ScrewFramework
 
 import numpy as np
 from scipy import linalg
-from sympy import symbols, solve
+from sympy import symbols
 from sympy import Matrix as symMatrix
 import matplotlib.pyplot as plt
 import utils
@@ -158,9 +158,6 @@ class Framework:
     symbolicRigidityMatrix
         Returns the symbolic rigidity matrix of the framework, making use of
         sympy.Matrix.
-    infinitesimalFlex
-        Finds the non-trivial infinitesimal flexes of the framework if the
-        framework is flexible.
     draw
         Draws the framework using matplotlib.pyplot.
     drawFlex
@@ -269,64 +266,6 @@ class Framework:
                     row += 1
         return R
 
-    def infinitesimalFlex(self):
-        """
-        Calculate a non-trivial infinitesimal flex if such a flex exists.
-
-        Returns
-        -------
-        flex : list
-            A non-trivial infinitesimal flex if one exists, else all zeros.
-        """
-        verts, edges = self.graph
-        nVerts = len(verts)
-        d = self.dimension
-        P = symMatrix(self.config)
-
-        bars = [P[:, i]-P[:, j] for i in verts for j in edges[i] if i < j]
-
-        # Create a list of symbols that will represent our flex
-        flex = []
-        for i in range(nVerts):
-            col = symMatrix([symbols('x' + str(i) + str(k)) for k in range(d)])
-            flex.append(col)
-
-        # Create a list of constraints that fix the first point in the
-        # configuration, then constrains the second flex to be in the line
-        # between p0 and p1, the third flex to lie in the plan# defined by p0,
-        # p1 and p2 and so on. This is possible if n > dim and the
-        # configuration is in general position. We do this by finding the
-        # nullspace of the matrix of vectors that define the hyperplane, which
-        # gives a normal vector. To ensure the flex remains in the hyperplane,
-        # we enforce that the dot product between the normal and the flex is
-        # zero.
-        nonTrivConstraints = []
-        for entry in flex[0]:
-            nonTrivConstraints.append(entry)
-
-        p0 = P[:, 0]
-        for i in range(1, d):
-            vects = [p0 - pi for pi in P[:, 1:i+1].T]
-            fixedHypPlane = symMatrix([v.transpose() for v in vects])
-            normal = fixedHypPlane.nullspace()[0]
-
-            constraint = flex[i].dot(normal)
-            nonTrivConstraints.append(constraint)
-
-        # Solve the system and apply the constraints to flex
-        nonTrivSoln = solve(nonTrivConstraints)
-        flex = [delta.subs(nonTrivSoln) for delta in flex]
-
-        # Create the constraints necessary for infinitesimal rigidity
-        flexEqns = [flex[i]-flex[j] for i in verts for j in edges[i] if i < j]
-        rigidConstraints = [bar.dot(flexEqns[i]) for i, bar in enumerate(bars)]
-
-        # Solve the system
-        soln = solve(rigidConstraints, dict=True)
-        flex = [delta.subs(soln[0]) for delta in flex]
-
-        return flex
-
     def draw(self, labels=False, fmt='-k', EKwargs={}, VKwargs={}):
         """
         Draw the framework with given configuration.
@@ -389,7 +328,7 @@ class Framework:
         """
         Draw a flex on the framework.
 
-        Parametters
+        Parameters
         -----------
         flex : numpy.ndarray
             (d*n, ) array representing the flex.
@@ -443,6 +382,57 @@ class Framework:
         kernell = linalg.null_space(R)
 
         return utils.projectAway(trivials, kernell)
+
+    def vertexSplit(self, vertex, location, originalNbs, splitNbs):
+        """
+        Perform a vertex splitting operation on the framework.
+
+        Parameters
+        ----------
+        vertex : int
+            The vertex to split.
+        location : numpy.ndarray
+            The d-dimensional vector for the location of the split vertex.
+        originalNbs : list of int
+            The neighbours that the original vertex will have.
+        splitNbs : list of int
+            The neighbours that the split vertex will have.
+        Returns
+        -------
+        Framework
+            The framework after a vertex split operation.
+        """
+        P = self.config
+        d = self.dimension
+        verts, edges = self.graph
+
+        allNbs = list(set(originalNbs) | set(splitNbs))
+
+        assert vertex in verts, "Vertex not in graph"
+        assert len(location) == d, "Location vector has incorrect dimension"
+        assert allNbs == edges[vertex], \
+            "Not all neighbours have been specified"
+
+        newP = np.column_stack([P, location])
+        splitVert = max(verts) + 1
+        newVerts = verts + [splitVert]
+
+        newEdges = {}
+        for v in newVerts:
+            if v == vertex:
+                nbs = originalNbs + [splitVert]
+            elif v == splitVert:
+                nbs = splitNbs + [vertex]
+            else:
+                nbs = edges[v][:]
+                if v in allNbs:
+                    if v not in originalNbs:
+                        nbs.remove(vertex)
+                    if v in splitNbs:
+                        nbs.append(splitVert)
+            newEdges[v] = nbs
+
+        return Framework([newVerts, newEdges], newP)
 
 
 class ScrewFramework:
