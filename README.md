@@ -6,4 +6,4 @@ Laidlaw project on rigidity and origami
 
 To access the notebooks in this repo, please launch our Binder
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/theran/laidlaw-origami.git/HEAD)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/theran/laidlaw-origami/HEAD?filepath=.%2FRigidity%2Fexamples%2Fexamples.ipynb)
