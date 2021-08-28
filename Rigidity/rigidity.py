@@ -621,11 +621,9 @@ class ScrewFramework:
 
         for v in verts:
             nbs = edges[v]
-
             for edge in nbs:
                 endNode = edge[0]
                 mark1, mark2 = edge[1:]
-
                 for i in range(n1+1-mark1):
                     for j in range(n2+1-mark2):
                         start = repeatedConfig[v, i, j]
@@ -633,3 +631,58 @@ class ScrewFramework:
                         E = np.column_stack([start, end])
                         ax.plot(*E, fmt, **EKwargs)
         return fig
+
+    def vertexSplit(self, vertex, location, originalNbs, splitNbs):
+        """
+        Perform a vertex splitting operation on the periodic framework.
+
+        Parameters
+        ----------
+        vertex : int
+            The vertex to split.
+        location : numpy.ndarray
+            The d-dimensional vector for the location of the split vertex.
+        originalNbs : list of list of 3-tuple
+            originalNbs[0] contains a list of 3-tuples that represent the
+            start vertice of the incident edges to the original vertex.
+            originalNbs[1] contains a list of 3-tuples that represent the
+            start vertices of the incident edges to the original vertex.
+        splitNbs : list of list of 3-tuple
+            splitNbs[0] contains a list of 3-tuples that represent the
+            start vertice of the incident edges to the split vertex.
+            splitNbs[1] contains a list of 3-tuples that represent the
+            start vertices of the incident edges to the split vertex.
+        Returns
+        -------
+        ScrewFramework
+            The periodic framework after a vertex split operation.
+        """
+        P = self.baseConfig
+        verts, edges = self.graph
+        originalIn, originalOut = originalNbs
+        splitIn, splitOut = splitNbs
+        allIn = list(set(originalIn) | set(splitIn))
+
+        assert vertex in verts, "Vertex not in graph"
+        assert len(location) == 3, "Location vector has incorrect dimension"
+
+        newP = np.column_stack([P, location])
+        splitVert = max(verts) + 1
+        newVerts = verts + [splitVert]
+
+        newEdges = {}
+        for v in newVerts:
+            if v == vertex:
+                nbs = originalOut + [(splitVert, 0, 0)]
+            elif v == splitVert:
+                nbs = splitOut
+            else:
+                nbs = edges[v][:]
+                for e in edges[v][:]:
+                    if e in allIn and e not in originalIn:
+                        nbs.remove(e)
+                    elif e in splitIn:
+                        nbs.append(e)
+            newEdges[v] = nbs
+
+        return ScrewFramework([newVerts, newEdges], newP, self.T1, self.T2)
